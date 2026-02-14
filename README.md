@@ -26,17 +26,19 @@ import string
 import nltk
 from tabulate import tabulate
 
-# Download required NLTK data
+# Download required NLTK resources
 nltk.download('punkt')
+nltk.download('punkt_tab')   # IMPORTANT FIX
 nltk.download('stopwords')
 
 # -------------------------------
-# Document Collection
+# Sample Documents
 # -------------------------------
 documents = {
-    "doc1": "the health Observation for March",
-    "doc2": "the health oriented Calender",
-    "doc3": "the awareness news for March awareness",
+    "doc1": "This is the first document.",
+    "doc2": "This document is the second document.",
+    "doc3": "And this is the third one.",
+    "doc4": "Is this the first document?",
 }
 
 # -------------------------------
@@ -51,13 +53,14 @@ def preprocess_text(text):
     ]
     return " ".join(tokens)
 
+# Preprocess Documents
 preprocessed_docs = {
     doc_id: preprocess_text(doc)
     for doc_id, doc in documents.items()
 }
 
 # -------------------------------
-# Vectorization
+# Vectorizers
 # -------------------------------
 count_vectorizer = CountVectorizer()
 count_matrix = count_vectorizer.fit_transform(preprocessed_docs.values())
@@ -68,7 +71,7 @@ tfidf_matrix = tfidf_vectorizer.fit_transform(preprocessed_docs.values())
 terms = tfidf_vectorizer.get_feature_names_out()
 
 # -------------------------------
-# Display TF Table
+# Term Frequency (TF) Table
 # -------------------------------
 print("\n--- Term Frequencies (TF) ---\n")
 tf_table = count_matrix.toarray()
@@ -82,7 +85,7 @@ print(tabulate(
 ))
 
 # -------------------------------
-# DF & IDF
+# Document Frequency (DF) & IDF
 # -------------------------------
 df = np.sum(count_matrix.toarray() > 0, axis=0)
 idf = tfidf_vectorizer.idf_
@@ -114,11 +117,26 @@ print(tabulate(
 ))
 
 # -------------------------------
-# Cosine Similarity + Search
+# Manual Cosine Similarity
 # -------------------------------
-def cosine_similarity_search(query, tfidf_matrix, tfidf_vectorizer, documents, preprocessed_docs):
+def cosine_similarity_manual(vec1, vec2):
+    dot_product = np.dot(vec1, vec2)
+    norm_vec1 = np.linalg.norm(vec1)
+    norm_vec2 = np.linalg.norm(vec2)
+
+    similarity = dot_product / (norm_vec1 * norm_vec2) \
+        if norm_vec1 != 0 and norm_vec2 != 0 else 0.0
+
+    return dot_product, norm_vec1, norm_vec2, similarity
+
+# -------------------------------
+# Search Function
+# -------------------------------
+def search(query, tfidf_matrix, tfidf_vectorizer):
     preprocessed_query = preprocess_text(query)
-    query_vector = tfidf_vectorizer.transform([preprocessed_query]).toarray()[0]
+    query_vector = tfidf_vectorizer.transform(
+        [preprocessed_query]
+    ).toarray()[0]
 
     results = []
 
@@ -126,39 +144,37 @@ def cosine_similarity_search(query, tfidf_matrix, tfidf_vectorizer, documents, p
         doc_id = list(preprocessed_docs.keys())[idx]
         doc_text = documents[doc_id]
 
-        dot_product = np.dot(query_vector, doc_vector)
-        norm_q = np.linalg.norm(query_vector)
-        norm_d = np.linalg.norm(doc_vector)
-
-        similarity = dot_product / (norm_q * norm_d) if norm_q != 0 and norm_d != 0 else 0.0
+        dot, norm_q, norm_d, sim = cosine_similarity_manual(
+            query_vector,
+            doc_vector
+        )
 
         results.append([
             doc_id,
             doc_text,
-            round(dot_product, 4),
+            round(dot, 4),
             round(norm_q, 4),
             round(norm_d, 4),
-            round(similarity, 4)
+            round(sim, 4)
         ])
 
     results.sort(key=lambda x: x[5], reverse=True)
     return results, query_vector
 
 # -------------------------------
-# User Query
+# Get User Query
 # -------------------------------
 query = input("\nEnter your query: ")
 
-results_table, query_vector = cosine_similarity_search(
+# Perform Search
+results_table, query_vector = search(
     query,
     tfidf_matrix,
-    tfidf_vectorizer,
-    documents,
-    preprocessed_docs
+    tfidf_vectorizer
 )
 
 # -------------------------------
-# Display Results
+# Display Cosine Similarity Table
 # -------------------------------
 print("\n--- Search Results and Cosine Similarity ---\n")
 
@@ -191,7 +207,7 @@ print(tabulate(
 ))
 
 # -------------------------------
-# Ranked Documents
+# Ranking Table
 # -------------------------------
 print("\n--- Ranked Documents ---\n")
 
@@ -210,16 +226,20 @@ print(tabulate(
     tablefmt="grid"
 ))
 
+# -------------------------------
+# Highest Rank Document
+# -------------------------------
 highest_doc = max(results_table, key=lambda x: x[5])
-print(f"\nThe highest rank cosine score is: {highest_doc[5]} (Document ID: {highest_doc[0]})")
 
+print(f"\nThe highest rank cosine score is: {highest_doc[5]} (Document ID: {highest_doc[0]})")
 ```
 
 ### Output:
 
-<img width="808" height="733" alt="image" src="https://github.com/user-attachments/assets/75f7001c-0fce-41b2-8c43-de9c7d08dfcf" />
+<img width="614" height="629" alt="image" src="https://github.com/user-attachments/assets/fce069b0-f862-484b-b3c3-c60ec4545693" />
 
-<img width="1010" height="579" alt="image" src="https://github.com/user-attachments/assets/2bb635d8-f46c-4040-9f28-22230a014dcc" />
+<img width="934" height="613" alt="image" src="https://github.com/user-attachments/assets/8f9789dc-8571-4ba6-8f87-5c25761d9a5b" />
+
 
 
 
